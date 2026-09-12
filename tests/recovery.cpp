@@ -6,6 +6,7 @@
 #include "luajit/lua.hpp"
 #include "imgui/imgui.h"
 #include <fstream>
+#include <DbgHelp.h>
 #include <iostream>
 #include <stdexcept>
 
@@ -47,7 +48,18 @@ function pso_on_log(s) end
 function pso_on_unhandled_error(s) end
 )";
 }
+static LONG WINAPI crash_dump(EXCEPTION_POINTERS* exception) {
+    std::cerr << "Unhandled exception 0x" << std::hex << exception->ExceptionRecord->ExceptionCode
+              << " at " << exception->ExceptionRecord->ExceptionAddress << std::endl;
+    HANDLE file = CreateFileA("recovery-crash.dmp", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+    MINIDUMP_EXCEPTION_INFORMATION info = { GetCurrentThreadId(), exception, FALSE };
+    MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr);
+    CloseHandle(file);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
 int main(int argc, char** argv) {
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    SetUnhandledExceptionFilter(crash_dump);
     try {
         char repository[MAX_PATH], temp[MAX_PATH], path[MAX_PATH];
         GetCurrentDirectoryA(MAX_PATH, repository);
