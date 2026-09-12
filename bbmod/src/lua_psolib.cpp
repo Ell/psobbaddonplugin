@@ -43,8 +43,9 @@ static int wrap_exceptions(lua_State *L, lua_CFunction f) {
     catch (std::exception& e) {
         lua_pushstring(L, e.what());
     }
-    // Let LuaJIT unwind its own Lua errors through nested C calls (require).
-    // Only convert the C++ exception types thrown by our bindings.
+    catch (...) {
+        lua_pushliteral(L, "caught (...)");
+    }
     return lua_error(L);  // Rethrow as a Lua error.
 }
 
