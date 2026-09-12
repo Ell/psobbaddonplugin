@@ -9,7 +9,10 @@ DebugViewBuffer::~DebugViewBuffer()
 
 int DebugViewBuffer::sync()
 {
-    OutputDebugString(str().c_str());
+    // Debug output uses a first-chance Windows exception. Without a debugger,
+    // avoid introducing that exception while recovering from a LuaJIT error.
+    // The native ImGui log below and autoreload file log remain available.
+    if (IsDebuggerPresent()) OutputDebugStringA(str().c_str());
     g_lualog.AddLog("%s", str().c_str());
     str("");
 
