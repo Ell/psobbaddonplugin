@@ -16,6 +16,7 @@
 #include "log.h"
 #include "luastate.h"
 #include "lua_hooks.h"
+#include "reload_runtime.h"
 #include "lua_psolib.h"
 #include "sol.hpp"
 
@@ -154,7 +155,8 @@ void Uninitialize() {
     MH_Uninitialize();
     FPUSTATE fpustate;
     psolua_store_fpu_state(fpustate);
-    lua_close(g_LuaState);
+    reload_shutdown();
+    if (g_LuaState) lua_close(g_LuaState);
     psolua_restore_fpu_state(fpustate);
     g_LuaState = nullptr;
 }

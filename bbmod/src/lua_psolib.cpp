@@ -4,6 +4,7 @@
 #include "sol.hpp"
 
 #include "lua_hooks.h"
+#include "reload_runtime.h"
 #include "luastate.h"
 #include "log.h"
 #include "version.h"
@@ -60,17 +61,8 @@ static errno_t psolualib_memcpy_s(void* dest, size_t destSize, const void* src, 
 }
 
 std::string psolualib_error_handler(std::string msg) {
-    sol::state_view lua(g_LuaState);
-
-    try {
-        g_log << "uncaught error: " << msg << std::endl;
-        std::string traceback = lua["debug"]["traceback"]();
-        g_log << traceback << std::endl;
-        psoluah_UnhandledError(msg);
-    }
-    catch (...) {
-        // do nothing
-    }
+    reload_report_error(msg);
+    psoluah_UnhandledError(msg);
     return msg;
 }
 
@@ -201,38 +193,35 @@ void psolua_load_library(lua_State * L) {
 }
 
 void psolua_initialize_state(void) {
+    // Consume the request even on failure: only another save/manual retry repeats it.
+    psolua_initialize_on_next_frame = false;
+    if (!reload_preflight()) return;
+    reload_clear_error();
+    psolua_callbacks_enabled = false;
     if (g_LuaState != nullptr) {
         lua_close(g_LuaState);
         g_LuaState = nullptr;
     }
     g_LuaState = luaL_newstate();
-
     if (!g_LuaState) {
-        MessageBoxA(nullptr, "LuaJit new state failed.", "Lua error", 0);
-        exit(1);
+        reload_report_error("Could not allocate Lua state. Press F12 to retry.");
+        return;
     }
-
-    g_lualog.Clear();
     g_log << "Initializing Lua state" << std::endl;
-
-    sol::state_view lua(g_LuaState);
-
     luaL_openlibs(g_LuaState);
     psolua_load_library(g_LuaState);
-    sol::protected_function_result res = lua.do_file("addons/init.lua");
-    if (res.status() != sol::call_status::ok) {
-        sol::error what = res;
-        g_log << (int)res.status() << std::endl;
-        g_log << what.what() << std::endl;
-        lua["pso"]["error_handler"](what);
-        MessageBoxA(nullptr, "Failed to load init.lua", "Lua error", 0);
-        exit(1);
+    // Use the C API here: bootstrap errors must not depend on a Lua error handler.
+    if (luaL_loadfile(g_LuaState, "addons/init.lua") != 0 ||
+        lua_pcall(g_LuaState, 0, 0, 0) != 0) {
+        const char* error = lua_tostring(g_LuaState, -1);
+        reload_report_error(error ? error : "Failed to load addons/init.lua");
+        lua_pop(g_LuaState, 1);
+        return;
     }
-    psoluah_Init();
-
-    psolua_initialize_on_next_frame = false;
-
+    if (!psoluah_Init()) return;
+    psolua_callbacks_enabled = true;
     loadCustomTheme();
+    reload_note_success();
 }
 
 static std::string psolualib_read_cstr(int memory_address, int len) {

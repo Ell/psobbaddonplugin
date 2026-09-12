@@ -6,6 +6,7 @@
 #include "log.h"
 #include "luastate.h"
 #include "lua_hooks.h"
+#include "reload_runtime.h"
 #include "lua_psolib.h"
 
 STDMETHODIMP ImguiD3D8Device::QueryInterface(REFIID riid, void ** ppvObj)
@@ -88,6 +89,7 @@ STDMETHODIMP ImguiD3D8Device::Present(CONST RECT * pSourceRect, CONST RECT * pDe
     FPUSTATE fpustate;
     psolua_store_fpu_state(fpustate);
 
+    reload_poll();
     psolua_process_key_events();
 
     psoluah_Present();
@@ -101,6 +103,7 @@ STDMETHODIMP ImguiD3D8Device::Present(CONST RECT * pSourceRect, CONST RECT * pDe
             ImGui::End();
         }
 
+        reload_draw_status();
         ImGui::Render();
 
         device->EndScene();

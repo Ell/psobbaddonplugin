@@ -62,3 +62,64 @@ PSO specific functions are in the `pso` global table.
  * get_language -- retrieves the language value for addons to handle translation.
  * get_version -- returns a table containing fields `version_string`, `major`, `minor`, and `patch`. The latter three are integer values corresponding to the plugin's version number. The `version_string` is a string representation.
  * require_version -- accepts three arguments specifying the version and returns true if the plugin's version is at that level or higher.
+
+## Ell fork: Lua development and automatic reload
+
+This fork adds native file watching and recovery from ordinary Lua errors.
+`addons/autoreload.ini` enables development mode in this distribution. Save a
+Lua source file to reload all addons after 350 ms without further filesystem
+changes. Editor saves using rename/replace, added files, and deleted files are
+supported. Identical contents do not cause another reload.
+
+The watcher uses asynchronous `ReadDirectoryChangesW` notifications and survives
+Lua failures. It never calls Lua from a background thread. Reloads run at the
+existing frame boundary. Syntax is checked before discarding the current Lua
+state; a syntax error keeps the previous code running. Bootstrap or core callback
+runtime errors suspend Lua callbacks, show a native error panel, and leave the
+game running. Ordinary addon callback failures retain the existing per-addon
+isolation. Save a fix to retry automatically, use the panel's Retry button, or
+press **F12**, which works even when Lua is unavailable. The backtick menu's
+Reload button and `pso.reload()` still work.
+
+Settings in `addons/autoreload.ini` are read when the DLL starts:
+
+- `Enabled=1`: watch for saves; `0` retains manual reload and error recovery.
+- `DebounceMs=350`: quiet period, clamped to 100–5000 ms.
+- `Exclude=options.lua`: semicolon-separated basenames or paths relative to
+  `addons`, case-insensitive, with either slash style. No wildcard expansion.
+  Add any other generated `.lua` settings here to avoid reload loops.
+
+Only `.lua` source files are considered. Hidden/editor temporary files, `fonts`,
+`customdlls`, and directory reparse points are skipped. Excluded files are also
+excluded from the syntax preflight; if loaded by an addon, their Lua errors are
+handled during initialization. Files are scanned on notifications, not on every
+frame. A watcher failure retries opening the directory once a second and shows
+its status in the native panel. Changes are applied when the game renders again
+if rendering pauses while unfocused.
+
+Successful reloads reset Lua state; runtime initialization failures do not roll
+back the previous environment or undo addon side effects. Recovery covers Lua
+syntax and runtime errors, including broken core scripts. Native crashes,
+infinite loops, and live DLL replacement are outside this feature's scope.
+Diagnostics are appended to `bbmod-autoreload.log` in the game directory.
+
+### Building and testing this fork
+
+Use Visual Studio 2022's C++ desktop tools and a Windows SDK:
+
+```bat
+msbuild bbmod.sln /m /p:Configuration=Release /p:Platform=Win32
+rem From an x86 Native Tools command prompt:
+tests\run.cmd
+```
+
+The GitHub Actions Windows build runs the native watcher/recovery tests and
+uploads `bbmod-native-autoreload`, containing the DLL, symbols, addon files, and
+the test executable. The tests use a temporary fixture directory and exercise
+real filesystem notifications, atomic saves, exclusions, callback failures,
+broken bootstrap/core scripts, native retry, and recovery after another save.
+
+Install by closing the game, backing up `dinput8.dll`, and copying the artifact's
+DLL and addon files into the PSOBB directory. Preserve existing custom addons and
+settings. On Wine/Proton retain the `dinput8=n,b` override. Building and replacing
+the native DLL requires one game restart; subsequent Lua saves do not.

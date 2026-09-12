@@ -38,6 +38,10 @@ void psolua_process_key_events(void) {
     FPUSTATE fpustate;
 
     for (auto e : key_events) {
+        if (e.isPressed && e.keyCode == VK_F12) {
+            psolua_initialize_on_next_frame = true;
+            continue;
+        }
         if (e.isPressed) {
             psolua_store_fpu_state(fpustate);
             psoluah_KeyPressed(e.keyCode);

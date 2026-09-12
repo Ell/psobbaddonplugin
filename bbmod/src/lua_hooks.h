@@ -5,7 +5,8 @@
 // Called before Direct3D8 Present function is called.
 void psoluah_Present(void);
 // Calls all the init callbacks and stores their return values into the addons list.
-void psoluah_Init(void);
+bool psoluah_Init(void);
+extern bool psolua_callbacks_enabled;
 
 void psoluah_KeyPressed(int key_code);
 

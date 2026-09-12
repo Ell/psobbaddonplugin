@@ -9,3 +9,9 @@ x64
 
 /addons/*/options.lua
 /bbmod.zip
+
+/tests/*.exe
+/tests/*.obj
+/tests/*.pdb
+/dist/
+/bbmod-autoreload.log
