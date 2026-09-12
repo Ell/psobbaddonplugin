@@ -86,6 +86,11 @@ int main(int argc, char** argv) {
             check(after <= before + 1, "watcher cancellation releases handles");
         }
         DeleteFileA("addons/test/options.lua");
+        write("addons/init.lua", "function broken(");
+        psolua_initialize_state();
+        check(!g_LuaState && !psolua_callbacks_enabled && !reload_last_error().empty(), "syntax error at startup leaves native recovery alive");
+        psoluah_Present();
+        write("addons/init.lua", bootstrap(3));
         psolua_initialize_state();
         check(psolua_callbacks_enabled && integer("value") == 3, "initial Lua bootstrap succeeds");
         reload_poll();
