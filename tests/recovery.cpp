@@ -48,6 +48,24 @@ function pso_on_log(s) end
 function pso_on_unhandled_error(s) end
 )";
 }
+static bool capture_exceptions = false;
+static LONG WINAPI trace_exception(EXCEPTION_POINTERS* exception) {
+    static bool active = false;
+    if (!capture_exceptions || active) return EXCEPTION_CONTINUE_SEARCH;
+    active = true;
+    FILE* log = nullptr;
+    fopen_s(&log, "exception-events.txt", "a");
+    if (log) {
+        fprintf(log, "Exception %08lx at %p\n", exception->ExceptionRecord->ExceptionCode, exception->ExceptionRecord->ExceptionAddress);
+        fclose(log);
+    }
+    HANDLE file = CreateFileA("first-chance.dmp", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+    MINIDUMP_EXCEPTION_INFORMATION info = { GetCurrentThreadId(), exception, FALSE };
+    MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr);
+    CloseHandle(file);
+    active = false;
+    return EXCEPTION_CONTINUE_SEARCH;
+}
 static LONG WINAPI crash_dump(EXCEPTION_POINTERS* exception) {
     std::cerr << "Unhandled exception 0x" << std::hex << exception->ExceptionRecord->ExceptionCode
               << " at " << exception->ExceptionRecord->ExceptionAddress << std::endl;
@@ -60,6 +78,7 @@ static LONG WINAPI crash_dump(EXCEPTION_POINTERS* exception) {
 int main(int argc, char** argv) {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     SetUnhandledExceptionFilter(crash_dump);
+    AddVectoredExceptionHandler(1, trace_exception);
     try {
         char repository[MAX_PATH], temp[MAX_PATH], path[MAX_PATH];
         GetCurrentDirectoryA(MAX_PATH, repository);
@@ -172,6 +191,7 @@ int main(int argc, char** argv) {
         psoluah_Present();
         check(psolua_callbacks_enabled && reload_last_error().empty(), "ordinary addon recovers on save");
         // Broken core module is distinct from a broken bootstrap file.
+        capture_exceptions = true;
         std::cout << "Testing required core module failure" << std::endl;
         write("addons/psointernal/init.lua", "error('core module failure')");
         wait_runtime();
