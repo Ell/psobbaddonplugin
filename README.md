@@ -108,7 +108,7 @@ Diagnostics are appended to `bbmod-autoreload.log` in the game directory.
 Use Visual Studio 2022's C++ desktop tools and a Windows SDK:
 
 ```bat
-msbuild bbmod.sln /m /p:Configuration=Release /p:Platform=Win32
+msbuild bbmod.sln /m /p:Configuration=Release /p:Platform=x86
 rem From an x86 Native Tools command prompt:
 tests\run.cmd
 ```

@@ -295,6 +295,7 @@ static sol::table psolualib_list_addons() {
     sol::table ret = lua.create_table();
 
     hFind = FindFirstFileA("addons/*", &find);
+    if (hFind == INVALID_HANDLE_VALUE) return ret;
     do {
         std::string filename(find.cFileName);
         if (filename == "..") continue;
@@ -305,6 +306,7 @@ static sol::table psolualib_list_addons() {
             ret.add(filename);
         }
     } while (FindNextFileA(hFind, &find));
+    FindClose(hFind);
 
     return ret;
 }
@@ -456,6 +458,7 @@ sol::table psolualib_list_font_files() {
     fontsPath[MAX_PATH - 1] = '\0';
 
     hFind = FindFirstFileA(fontsPath, &find);
+    if (hFind == INVALID_HANDLE_VALUE) return ret;
     do {
         std::string filename(find.cFileName);
         if (filename == "..") continue;
@@ -464,6 +467,7 @@ sol::table psolualib_list_font_files() {
             ret.add(filename);
         }
     } while (FindNextFileA(hFind, &find));
+    FindClose(hFind);
 
     return ret;
 }
