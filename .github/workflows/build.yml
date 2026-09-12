@@ -7,16 +7,29 @@ permissions:
 jobs:
   build:
     runs-on: windows-2022
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
       - name: Build release DLL
         run: msbuild bbmod.sln /m /p:Configuration=Release /p:Platform=x86
       - name: Build and run native recovery tests
+        timeout-minutes: 2
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
           call tests\run.cmd
+      - name: Preserve diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          path: |
+            Release/dinput8.dll
+            Release/dinput8.pdb
+            tests/recovery-tests.exe
+            tests/recovery-tests.pdb
+            C:/Users/runneradmin/AppData/Local/Temp/bbmod-recovery-*/bbmod-autoreload.log
       - name: Package
         shell: pwsh
         run: |

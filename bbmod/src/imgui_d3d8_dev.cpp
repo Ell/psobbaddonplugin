@@ -97,6 +97,8 @@ STDMETHODIMP ImguiD3D8Device::Present(CONST RECT * pSourceRect, CONST RECT * pDe
     psolua_restore_fpu_state(fpustate);
     if (device->BeginScene() >= 0) {
 
+        if (!psolua_callbacks_enabled) reload_recover_frame();
+
         // Prevent imgui from asserting.
         while (GImGui->CurrentWindowStack.Size > 1) {
             g_log << "[assert avoided] Match your imgui.Begin's with imgui.End's!" << std::endl;

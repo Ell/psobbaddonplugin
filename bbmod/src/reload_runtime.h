@@ -9,3 +9,4 @@ void reload_clear_error();
 const std::string& reload_last_error();
 bool reload_preflight();
 void reload_note_success();
+void reload_recover_frame();

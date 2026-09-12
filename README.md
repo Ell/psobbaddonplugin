@@ -20,7 +20,7 @@ To test the lua code, install luacheck and busted from luarocks and
     $ luacheck addons
     $ busted
 
-To build the plugin dll, use Visual Studio 2015.
+This fork builds with Visual Studio 2022; see the build instructions below.
 
 ## Usage
 

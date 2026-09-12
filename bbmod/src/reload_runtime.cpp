@@ -3,6 +3,7 @@
 #include "lua_psolib.h"
 #include "luajit/lua.hpp"
 #include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
 #include "log.h"
 #include <memory>
 #include <fstream>
@@ -94,4 +95,21 @@ void reload_draw_status() {
         if (ImGui::Button("Dismiss")) last_error.clear();
     }
     ImGui::End();
+}
+
+void reload_recover_frame() {
+    // A core Lua error can interrupt a window before the Lua stack balancer runs.
+    // Restore surplus pushes using the same baselines checked by this ImGui version.
+    auto& g = *GImGui;
+    while (g.CurrentWindow) {
+        auto* window = g.CurrentWindow;
+        const int* sizes = window->DC.StackSizesBackup;
+        while (window->DC.GroupStack.Size > sizes[1]) ImGui::EndGroup();
+        while (window->IDStack.Size > sizes[0]) ImGui::PopID();
+        while (g.ColorModifiers.Size > sizes[3]) ImGui::PopStyleColor();
+        while (g.StyleModifiers.Size > sizes[4]) ImGui::PopStyleVar();
+        while (g.FontStack.Size > sizes[5]) ImGui::PopFont();
+        if (g.CurrentWindowStack.Size <= 1) break;
+        ImGui::End();
+    }
 }

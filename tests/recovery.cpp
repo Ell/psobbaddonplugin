@@ -126,6 +126,14 @@ int main(int argc, char** argv) {
         reload_draw_status();
         ImGui::Render();
         check(!reload_last_error().empty(), "native error panel renders without Lua callbacks");
+        write("addons/init.lua", bootstrap(35) + "\nfunction pso_on_present() imgui.Begin('interrupted'); imgui.PushStyleColor('Text',1,0,0,1); error('interrupted window') end\n");
+        psolua_initialize_state();
+        ImGui::NewFrame();
+        psoluah_Present();
+        reload_recover_frame();
+        reload_draw_status();
+        ImGui::Render();
+        check(!psolua_callbacks_enabled && reload_last_error().find("interrupted window") != std::string::npos, "core Lua error unwinds interrupted ImGui window and style");
         write("addons/init.lua", bootstrap(40));
         wait_runtime();
         check(psolua_callbacks_enabled && integer("value") == 40, "core callback recovers on save");
@@ -152,6 +160,7 @@ int main(int argc, char** argv) {
         psoluah_Present();
         check(psolua_callbacks_enabled && reload_last_error().empty(), "ordinary addon recovers on save");
         // Broken core module is distinct from a broken bootstrap file.
+        std::cout << "Testing required core module failure" << std::endl;
         write("addons/psointernal/init.lua", "error('core module failure')");
         wait_runtime();
         check(!psolua_callbacks_enabled && reload_last_error().find("core module failure") != std::string::npos, "broken required core module is recoverable");
